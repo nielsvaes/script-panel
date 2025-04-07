@@ -1,5 +1,5 @@
-__author__ = "Richard Brenick"
-
+__author__ = "Richard Brenick", "Niels Vaes"
+                                # ^ only fuzzy search :)
 import logging
 # Standard
 import os.path
@@ -393,13 +393,23 @@ class ScriptPanelWidget(QtWidgets.QWidget):
     def filter_scripts(self, text=None):
         if text is None:
             text = self.ui.search_LE.text()
-
-        search = QtCore.QRegExp(text, QtCore.Qt.CaseInsensitive, QtCore.QRegExp.RegExp)
-        self.proxy.setFilterRegExp(search)
+        
         if not text:
+            # reset
+            self.proxy.setFilterRegExp("")
             self.ui.scripts_TV.expandToDepth(self.default_expand_depth)
-        else:
-            self.ui.scripts_TV.expandAll()
+            return
+        
+        # let's get rid of underscores
+        text = text.replace(' ', '[_ ]')
+        
+        # this makes a pattern that allows characters to appear in a sequence, but allows for other things in between them
+        # eg, "meta per", would return "bake_and_export_metahuman_performance"
+        fuzzy_pattern = '.*'.join(c for c in text)
+        
+        search = QtCore.QRegExp(fuzzy_pattern, QtCore.Qt.CaseInsensitive, QtCore.QRegExp.RegExp)
+        self.proxy.setFilterRegExp(search)
+        self.ui.scripts_TV.expandAll()
 
     def script_double_clicked(self, script_path):
         user_setting = self.settings.get_value(self.settings.k_double_click_action, sps.sk.run_script_on_click)
@@ -764,7 +774,7 @@ class ScriptPanelUI(QtWidgets.QWidget):
 
         self.search_LE = QtWidgets.QLineEdit()
         self.search_LE.setClearButtonEnabled(True)
-        self.search_LE.setPlaceholderText("Search...")
+        self.search_LE.setPlaceholderText("Fuzzy search...")
         self.search_LE.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Minimum)
 
         self.refresh_BTN = QtWidgets.QPushButton()
