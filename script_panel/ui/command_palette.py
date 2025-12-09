@@ -88,25 +88,36 @@ class PaletteGraphicsView(QtWidgets.QGraphicsView):
                 super(PaletteGraphicsView, self).mousePressEvent(event)
 
         elif event.button() == QtCore.Qt.MiddleButton:
+            item_under_cursor = self.get_item_under_cursor()
             release_event = QtGui.QMouseEvent(QtCore.QEvent.MouseButtonRelease, event.localPos(), event.screenPos(),
                                               QtCore.Qt.LeftButton, QtCore.Qt.NoButton, event.modifiers())
             super(PaletteGraphicsView, self).mouseReleaseEvent(release_event)
             self.toggle_drag_mode(True)
-            fake_event = QtGui.QMouseEvent(event.type(), event.localPos(), event.screenPos(),
-                                           QtCore.Qt.LeftButton, event.buttons() | QtCore.Qt.LeftButton,
-                                           event.modifiers())
-            super(PaletteGraphicsView, self).mousePressEvent(fake_event)
+            
+            # Only send fake left mouse event if not clicking on an item
+            # This prevents triggering click events on widgets inside PaletteRectItems
+            if not item_under_cursor:
+                fake_event = QtGui.QMouseEvent(event.type(), event.localPos(), event.screenPos(),
+                                               QtCore.Qt.LeftButton, event.buttons() | QtCore.Qt.LeftButton,
+                                               event.modifiers())
+                super(PaletteGraphicsView, self).mousePressEvent(fake_event)
+            else:
+                # Accept the event to start dragging, but don't forward to items
+                event.accept()
         else:
             event.accept()
             super(PaletteGraphicsView, self).mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         if event.button() == QtCore.Qt.MiddleButton:
-            fake_event = QtGui.QMouseEvent(event.type(), event.localPos(), event.screenPos(),
-                                           QtCore.Qt.LeftButton, event.buttons() & QtCore.Qt.LeftButton,
-                                           event.modifiers())
-            super(PaletteGraphicsView, self).mouseReleaseEvent(fake_event)
+            # Only send fake release event if we're in drag mode and potentially sent a fake press
+            if self.dragMode() == self.ScrollHandDrag:
+                fake_event = QtGui.QMouseEvent(event.type(), event.localPos(), event.screenPos(),
+                                               QtCore.Qt.LeftButton, event.buttons() & QtCore.Qt.LeftButton,
+                                               event.modifiers())
+                super(PaletteGraphicsView, self).mouseReleaseEvent(fake_event)
             self.toggle_drag_mode(False)
+            event.accept()
         else:
             event.accept()
             super(PaletteGraphicsView, self).mouseReleaseEvent(event)
